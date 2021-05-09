@@ -3,22 +3,38 @@ export enum GeometryType {
   Point = "Point",
 }
 
-export interface FloorGeojson {
+export interface PathGeojson {
   type: string;
   name: string;
-  features: FloorGeojsonFeatures[];
+  features: PathGeojsonFeatures[];
 }
 
-export interface FloorGeojsonFeatures {
+export interface PathGeojsonFeatures {
   properties: {
     floor: string;
   };
   geometry: {
-    type: GeometryType;
-    coordinates: number[] | number[][] | number[][][];
+    type: GeometryType.MultilineString;
+    coordinates: number[][][];
   };
 }
 
+export interface PointGeojson {
+  type: string;
+  name: string;
+  features: PointGeojsonFeatures[];
+}
+
+export interface PointGeojsonFeatures {
+  properties: {
+    name: string;
+    type: string;
+  };
+  geometry: {
+    type: GeometryType.Point;
+    coordinates: number[];
+  };
+}
 export interface ResultGeojson {
   type: "FeatureCollection";
   name: string;
@@ -28,21 +44,22 @@ export interface ResultGeojson {
 export interface ResultGeojsonFeatures {
   type: "Feature";
   properties: {
-    id: string;
-    nodes: PointNode[];
+    id: number;
+    nodes: CalculatedNode[];
+    floor: string;
+    isFloorChanger: boolean;
+    name?: string;
   };
   geometry: {
-    type: GeometryType;
-    coordinates: number[] | number[][] | number[][][];
+    type: GeometryType.Point;
+    coordinates: number[];
   };
 }
 
-export interface PointNode {
-  [id: string]: {
-    distance: number;
-    isFloorChanger: boolean;
-    invalidDistance: number | null;
-  };
+export interface CalculatedNode {
+  distance: number;
+  isFloorChanger: boolean;
+  invalidDistance: number | null;
 }
 
 export interface GraphPoint {
@@ -52,5 +69,10 @@ export interface GraphPoint {
 
 export interface GraphItem {
   nodes: GraphPoint[];
+  point: GraphPoint;
+}
+
+export interface CalculatedGraphItem {
+  nodes: CalculatedNode[];
   point: GraphPoint;
 }

@@ -5,13 +5,27 @@
       <label
         class="add-floor__label"
         :class="{ 'add-floor__label--first': !isAnyGeojson }"
+        v-if="!isPathLoaded"
       >
-        <span>Dodaj piętro</span>
+        <span>Dodaj ściezkę</span>
         <input
           class="add-floor__input"
           type="file"
           ref="input"
-          @change="onFileSelect"
+          @change="onPathSelect"
+        />
+      </label>
+      <label
+        class="add-floor__label"
+        :class="{ 'add-floor__label--first': !isAnyGeojson }"
+        v-if="isPathLoaded && !isPointsLoaded"
+      >
+        <span>Dodaj punkty zmiany pięter</span>
+        <input
+          class="add-floor__input"
+          type="file"
+          ref="input"
+          @change="onPointsSelect"
         />
       </label>
     </div>
@@ -24,12 +38,14 @@ import distance from "@turf/distance";
 import { point } from "@turf/helpers";
 
 import {
-  FloorGeojson,
   ResultGeojsonFeatures,
   GeometryType,
-  LinePoint,
   GraphItem,
   GraphPoint,
+  CalculatedGraphItem,
+  CalculatedNode,
+  PathGeojson,
+  PointGeojson,
 } from "./model/geojson.model";
 
 @Component({})
@@ -39,16 +55,36 @@ export default class App extends Vue {
     input: HTMLInputElement;
   };
   nextId = 0;
+  isPathLoaded = false;
+  isPointsLoaded = false;
+  currentPathGeojson!: PathGeojson | null;
 
-  get isAnyGeojson() {
+  get isAnyGeojson(): boolean {
     return !!this.geojsons.length;
   }
 
-  onFileSelect() {
+  onPathSelect(): void {
     if (!this.$refs.input?.files) {
       return;
     }
 
+    const newFile = this.$refs.input.files[0];
+    // console.log("newFile:::", newFile);
+
+    if (newFile.type !== "application/geo+json") {
+      throw new Error("File type is not geojson.");
+    }
+
+    this.readFile<PathGeojson>(newFile).then((geojson) => {
+      this.isPathLoaded = true;
+      this.currentPathGeojson = geojson;
+    });
+  }
+
+  onPointsSelect() {
+    if (!this.$refs.input?.files) {
+      return;
+    }
     const newFile = this.$refs.input.files[0];
     console.log("newFile:::", newFile);
 
@@ -56,12 +92,17 @@ export default class App extends Vue {
       throw new Error("File type is not geojson.");
     }
 
-    this.readFile(newFile).then((geojson) => {
-      this.calculateNaviPoints(geojson);
+    this.readFile<PointGeojson>(newFile).then((pointsGeojson) => {
+      if (this.currentPathGeojson) {
+        this.calculateNaviPoints(this.currentPathGeojson, pointsGeojson);
+        this.isPointsLoaded = true;
+        this.isPathLoaded = false;
+        this.currentPathGeojson = null;
+      }
     });
   }
 
-  private readFile(file: File): Promise<FloorGeojson> {
+  private readFile<T>(file: File): Promise<T> {
     return new Promise((resolve, reject) => {
       const fileReader = new FileReader();
       fileReader.onload = function (loadedEvent) {
@@ -73,28 +114,34 @@ export default class App extends Vue {
         reject(error);
       };
       fileReader.readAsText(file);
-    }).then((text) => JSON.parse(text as string) as FloorGeojson);
+    }).then((text) => JSON.parse(text as string) as T);
   }
 
-  private calculateNaviPoints(geojson: FloorGeojson): void {
-    const multiline = geojson.features.find(
+  private calculateNaviPoints(
+    pathGeojson: PathGeojson,
+    pointsGeojson: PointGeojson
+  ): void {
+    const multiline = pathGeojson.features.find(
       (feature) => GeometryType.MultilineString === feature.geometry.type
     );
-    const floor = multiline?.properties.floor;
+
+    const points = pointsGeojson.features;
+    console.log("points:::", points);
 
     if (!multiline) {
       throw new Error(
-        `There is no multiline in uploaded geojson:, ${geojson.name}`
+        `There is no multiline in uploaded geojson:, ${pathGeojson.name}`
       );
     }
+
+    const floor = multiline?.properties.floor;
 
     if (!floor) {
       throw new Error(
-        `There is no floor in multiline properties in geojson:, ${geojson.name}`
+        `There is no floor in multiline properties in geojson:, ${pathGeojson.name}`
       );
     }
-
-    const linesWithPointsId = multiline.geometry.coordinates.reduce(
+    const linesWithPointsId: GraphPoint[][] = multiline.geometry.coordinates.reduce(
       (result: GraphPoint[][], current: number[][]) => {
         const pointsWithIds = current.map((cords) => {
           const pointInResults = result.find((line) =>
@@ -105,82 +152,99 @@ export default class App extends Vue {
             )
           );
           if (pointInResults) {
-            const point = pointInResults.find(
+            return {
+              coordinates: cords,
+              id: pointInResults.find(
                 (linePoint) =>
                   linePoint.coordinates[0] === cords[0] &&
                   linePoint.coordinates[1] === cords[1]
-              );
-            if (!point) {
-              throw new Error('Object coordinates are incorrect.')
-            }
-
-            return {
-              coordinates: cords,
-              id: point.id,
-            };
+              )?.id,
+            } as GraphPoint;
           } else {
             this.nextId++;
             return {
               coordinates: cords,
               id: this.nextId,
-            };
+            } as GraphPoint;
           }
         });
+
         return [...result, pointsWithIds];
       },
       []
     );
 
-    const pointIds = linesWithPointsId.reduce((result: number[], current: GraphPoint[]) => {
-      const newPoints = current.filter((point) => !result.includes(point.id));
-      return [...result, ...newPoints];
-    }, []);
+    const pointIds: GraphPoint[] = linesWithPointsId.reduce(
+      (result: GraphPoint[], current: GraphPoint[]) => {
+        const newPoints = current.filter(
+          (point) => !result.some((p) => p.id === point.id)
+        );
+        return [...result, ...newPoints];
+      },
+      []
+    );
 
     const graph: GraphItem[] = pointIds.map((point: GraphPoint) => {
-      const nodes = linesWithPointsId.reduce((result: GraphItem[], current: GraphPoint[]) => {
-        const matchId = current.find((p) => point.id === p.id);
-        return matchId
-          ? [...result, current.find((p) => point.id !== p.id)]
-          : result;
-      }, []);
+      const nodes: GraphPoint[] = linesWithPointsId.reduce(
+        (result: GraphPoint[], current: GraphPoint[]) => {
+          const matchId = current.find((p) => point.id === p.id);
+          const opposite = current.find((p) => point.id !== p.id);
+          return matchId
+            ? opposite
+              ? [...result, opposite]
+              : [...result]
+            : result;
+        },
+        []
+      );
 
       return { nodes, point };
     });
 
-    const graphWithDistances = graph.map((graphItem) => {
-      const nodes = graphItem.nodes.map((node) => {
+    const graphWithDistances: CalculatedGraphItem[] = graph.map((graphItem) => {
+      const floorChangePoint = pointsGeojson.features.find(
+        (point) =>
+          point.geometry.coordinates[0] === graphItem.point.coordinates[0] &&
+          point.geometry.coordinates[1] === graphItem.point.coordinates[1]
+      );
+      console.log("ten sam punktfloorChangePoint !!!!", floorChangePoint);
+      const nodes: CalculatedNode[] = graphItem.nodes.map((node) => {
         const from = point(graphItem.point.coordinates);
         const to = point(node.coordinates);
-        const options = { units: "meters" };
-        const dist = distance(from, to, options);
+        const dist = distance(from, to, { units: "meters" });
+
+        const isFloorChanger = false;
+        const invalidDistance = dist;
+
         return {
           id: node.id,
           distance: dist,
+          invalidDistance,
+          isFloorChanger,
         };
       });
       return {
-        ...graphItem,
+        point: graphItem.point,
         nodes,
       };
     });
-    // diskry musi mieć graf czyli wszystkie punkty muszą być połączone,
-    // czyli trzeba zrobić też te odległości dla inwalidy, ale to tylko dla schodów/wind
-    const features = graphWithDistances.map((item) => {
-      return {
-        type: "Feature",
-        properties: {
-          id: item.point.id,
-          floor, // todo zczytać floor z multilina.
-          nodes: item.nodes,
-        },
-        geometry: { type: "Point", coordinates: item.point.coordinates },
-      };
-    });
 
-    const geojsonObj = {
-      type: "FeatureCollection",
-      features,
-    };
+    // const features: ResultGeojsonFeatures[] = graphWithDistances.map((item) => {
+    //   return {
+    //     type: "Feature",
+    //     properties: {
+    //       id: item.point.id,
+    //       floor,
+    //       nodes: item.nodes,
+    //       // isFloorChanger:
+    //       // name
+    //     },
+    //     geometry: {
+    //       type: GeometryType.Point,
+    //       coordinates: item.point.coordinates,
+    //     },
+    //   };
+    // });
   }
 }
 </script>
