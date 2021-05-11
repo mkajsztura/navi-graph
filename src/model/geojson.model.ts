@@ -37,7 +37,6 @@ export interface PointGeojsonFeatures {
 }
 export interface ResultGeojson {
   type: "FeatureCollection";
-  name: string;
   features: ResultGeojsonFeatures[];
 }
 
@@ -58,7 +57,6 @@ export interface ResultGeojsonFeatures {
 
 export interface CalculatedNode {
   distance: number;
-  isFloorChanger: boolean;
   invalidDistance: number | null;
 }
 
@@ -75,4 +73,6 @@ export interface GraphItem {
 export interface CalculatedGraphItem {
   nodes: CalculatedNode[];
   point: GraphPoint;
+  isFloorChanger: boolean;
+  name?: string;
 }

@@ -10,7 +10,9 @@
   "dependencies": {
     "@turf/distance": "^6.3.0",
     "@turf/helpers": "^6.3.0",
+    "@types/file-saver": "^2.0.2",
     "core-js": "^3.6.5",
+    "file-saver": "^2.0.5",
     "vue": "^2.6.11",
     "vue-class-component": "^7.2.3",
     "vue-property-decorator": "^9.1.2"
