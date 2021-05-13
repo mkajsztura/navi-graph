@@ -250,11 +250,12 @@ export default class App extends Vue {
         const from = point(graphItem.point.coordinates);
         const to = point(node.coordinates);
         const dist = distance(from, to, { units: "meters" });
+        console.log(dist);
 
         return {
           id: node.id,
-          distance: dist,
-          invalidDistance: dist,
+          distance: +dist.toFixed(2),
+          invalidDistance: +dist.toFixed(2),
         };
       });
       const baseData = {
