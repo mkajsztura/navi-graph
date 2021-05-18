@@ -1,5 +1,5 @@
 export enum GeometryType {
-  MultilineString = "MultiLineString",
+  LineString = "LineString",
   Point = "Point",
 }
 
@@ -14,8 +14,8 @@ export interface PathGeojsonFeatures {
     floor: string;
   };
   geometry: {
-    type: GeometryType.MultilineString;
-    coordinates: number[][][];
+    type: GeometryType.LineString;
+    coordinates: number[][];
   };
 }
 

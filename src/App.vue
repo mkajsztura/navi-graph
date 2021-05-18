@@ -7,7 +7,7 @@
     </p>
     <p>
       Ścieżka:<br />
-      Typ geometrii: MultilineString. <br />
+      Typ geometrii: LineString. <br />
       Atrybuty: floor - nazwa piętra.
     </p>
     <p>
@@ -109,9 +109,9 @@ export default class App extends Vue {
     const newFile = this.$refs.input.files[0];
     // console.log("newFile:::", newFile);
 
-    if (newFile.type !== this.geojsonType) {
-      throw new Error("File type is not geojson.");
-    }
+    // if (newFile.type !== this.geojsonType) {
+    //   throw new Error("File type is not geojson.");
+    // }
 
     this.readFile<PathGeojson>(newFile).then((geojson) => {
       this.isPathLoaded = true;
@@ -126,9 +126,9 @@ export default class App extends Vue {
     const newFile = this.$refs.input.files[0];
     console.log("newFile:::", newFile);
 
-    if (newFile.type !== "application/geo+json") {
-      throw new Error("File type is not geojson.");
-    }
+    // if (newFile.type !== "application/geo+json") {
+    //   throw new Error("File type is not geojson.");
+    // }
 
     this.readFile<PointGeojson>(newFile).then((pointsGeojson) => {
       if (this.currentPathGeojson) {
@@ -158,28 +158,27 @@ export default class App extends Vue {
     pathGeojson: PathGeojson,
     pointsGeojson: PointGeojson
   ): void {
-    const multiline = pathGeojson.features.find(
-      (feature) => GeometryType.MultilineString === feature.geometry.type
-    );
+    const lines = pathGeojson.features;
 
     const points = pointsGeojson.features;
     console.log("points:::", points);
 
-    if (!multiline) {
+    if (!lines) {
       throw new Error(
-        `There is no multiline in uploaded geojson:, ${pathGeojson.name}`
+        `There is no lines in uploaded geojson:, ${pathGeojson.name}`
       );
     }
 
-    const floor = multiline?.properties.floor;
+    const floor = lines[0]?.properties.floor;
 
     if (!floor) {
       throw new Error(
-        `There is no floor in multiline properties in geojson:, ${pathGeojson.name}`
+        `There is no floor in lines properties in geojson:, ${pathGeojson.name}`
       );
     }
-    const linesWithPointsId: GraphPoint[][] = multiline.geometry.coordinates.reduce(
-      (result: GraphPoint[][], current: number[][]) => {
+    const linesWithPointsId: GraphPoint[][] = lines
+      .map((line) => line.geometry.coordinates)
+      .reduce((result: GraphPoint[][], current: number[][]) => {
         const pointsWithIds = current.map((cords) => {
           const pointInResults = result.find((line) =>
             line.some(
@@ -207,9 +206,7 @@ export default class App extends Vue {
         });
 
         return [...result, pointsWithIds];
-      },
-      []
-    );
+      }, []);
 
     const pointIds: GraphPoint[] = linesWithPointsId.reduce(
       (result: GraphPoint[], current: GraphPoint[]) => {
