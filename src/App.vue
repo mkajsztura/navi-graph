@@ -223,11 +223,7 @@ export default class App extends Vue {
         (result: GraphPoint[], current: GraphPoint[]) => {
           const matchId = current.find((p) => point.id === p.id);
           const opposite = current.find((p) => point.id !== p.id);
-          return matchId
-            ? opposite
-              ? [...result, opposite]
-              : [...result]
-            : result;
+          return matchId && opposite ? [...result, opposite] : result;
         },
         []
       );
