@@ -27,8 +27,9 @@ export interface PointGeojson {
 
 export interface PointGeojsonFeatures {
   properties: {
-    name: string;
     type: string;
+    id: string;
+    nodes: string; // Id'ki punktów zmiany pięter,z którymi jest połączony punkt,s po przecinku
   };
   geometry: {
     type: GeometryType.Point;
@@ -43,10 +44,9 @@ export interface ResultGeojson {
 export interface ResultGeojsonFeatures {
   type: "Feature";
   properties: {
-    id: number;
+    id: string;
     nodes: CalculatedNode[];
     floor: string;
-    isFloorChanger: boolean;
     name?: string;
   };
   geometry: {
@@ -56,13 +56,16 @@ export interface ResultGeojsonFeatures {
 }
 
 export interface CalculatedNode {
+  id: string;
   distance: number;
   invalidDistance: number | null;
 }
 
 export interface GraphPoint {
   coordinates: number[];
-  id: number;
+  id: string;
+  floorChangeNodesString?: string;
+  type?: string;
 }
 
 export interface GraphItem {
@@ -73,6 +76,5 @@ export interface GraphItem {
 export interface CalculatedGraphItem {
   nodes: CalculatedNode[];
   point: GraphPoint;
-  isFloorChanger: boolean;
   name?: string;
 }

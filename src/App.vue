@@ -1,32 +1,40 @@
 <template>
   <div id="app">
-    <h1>Przygotowanie grafu Dijkstry</h1>
+    <h3>
+      Przygotowanie grafu Dijkstry - do obsługi wyznaczania najkrótszej trasy.
+    </h3>
     <p>
-      Pliki z punktami nawigacyjnymi i ścieżkami w formacie geojson, układ wsp.
-      WGS84, precyzja zapisu: 6.
+      Do przygotowania wynikowego geojsona, z wyliczonymi odległościami,
+      pomiędzy punktami, potrzebujemy dla każdego piętra ścieżek - na podstawie
+      których tworzymy punkty oraz ewentualne punkty zmiany pięter, dzięki
+      którym łączymy poziomy.<br />
+      Pliki z punktami zmiany pięter i ścieżkami dodajemy w formacie geojson,
+      układ wsp. WGS84, precyzja zapisu: 8.
     </p>
     <p>
-      Ścieżka:<br />
+      <b>Ścieżka:</b><br />
       Typ geometrii: LineString. <br />
-      Atrybuty: floor - nazwa piętra.
+      Atrybuty przypisane w geojsonie (W QGISie): <br />
+      - floor (nazwa piętra)
     </p>
     <p>
-      Punkty:<br />
+      <b>Punkty:</b><br />
       Typ geometrii: Points.<br />
-      Atrybuty: type: 'ramp/stairs/lift', name: 'Winda z parkingu'.
+      Atrybuty przypisane w geojsonie (W QGISie):<br />
+      - type: 'stairs/lift'( stairs - dla schodów, lift - dla taśm i wind)<br />
+      - id: string (np. "F00-lift-1")<br />
+      - nodes: string (id'ki punktów, z którymi jest połączony obecny punkt,
+      jako string, oddzielone przecinkiem, np. "F00-lift-1,F20-lift-1"))<br />
     </p>
     <p>
-      1. Dodajemy plik geojson ze ściężką (połączony graf Disktry) dla
-      piętra.<br />
-      2. Dodajemy plik geojson z punktami zmiany pięter.<br />
+      <b>Instrukcja:</b><br />
+      1. Dodajemy plik geojson ze ściężką (połączony graf Disktry) dla piętra.
+      np. galeria-nav-lines.geojson<br />
+      2. Dodajemy plik geojson z punktami zmiany pięter, np.
+      galeria-nav-points.geojson.<br />
       3. Generujemy wynikowy plik geojson z powstałymi punktami.<br />
-      4. Na ten moment w pliku wynikowym trzeba ręcznie przypisać nody -
-      połączenia pomiędzy piętrami, do zrobienia jest tabelka, żeby można to
-      było zrobić w tej aplikacji. <br />
-      5. Dla ułatwienia, tylko nody z isFloorChanger: true mogą mieć dopisane
-      połączenia pionowe, w przyszłości te punkty pojawia się w tabelce. <br />
-      6. Dla schodów będziemy wpisywać distance: 100, invalidDistance: 10000.
-      Dla ramp i wind distance: 200, invalidDistance: 200;
+      4. Przy generowaniu wyników osobno dla pięter, trzeba ręcznie skopiować
+      punkty do jednego pliku.<br />
     </p>
     <div class="add-floor">
       <label class="label" v-if="!isPathLoaded">
@@ -47,6 +55,11 @@
           @change="onPointsSelect"
         />
       </label>
+      <label class="label" v-if="isPathLoaded && !isPointsLoaded">
+        <span @click="cancelPoints">Brak punktów zmiany pięter</span>
+      </label>
+    </div>
+    <div>
       <button v-if="addedFloors.length" class="label" @click="generateResult()">
         Generuj plik wynikowy
       </button>
@@ -124,7 +137,6 @@ export default class App extends Vue {
       return;
     }
     const newFile = this.$refs.input.files[0];
-    console.log("newFile:::", newFile);
 
     // if (newFile.type !== "application/geo+json") {
     //   throw new Error("File type is not geojson.");
@@ -137,6 +149,24 @@ export default class App extends Vue {
         this.currentPathGeojson = null;
       }
     });
+  }
+
+  cancelPoints() {
+    const emptyGeojson = {
+      type: "FeatureCollection",
+      name: "janki-00-nav-points",
+      crs: {
+        type: "name",
+        properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" },
+      },
+      features: [],
+    };
+
+    if (this.currentPathGeojson) {
+      this.calculateNaviPoints(this.currentPathGeojson, emptyGeojson);
+      this.isPathLoaded = false;
+      this.currentPathGeojson = null;
+    }
   }
 
   private readFile<T>(file: File): Promise<T> {
@@ -159,9 +189,6 @@ export default class App extends Vue {
     pointsGeojson: PointGeojson
   ): void {
     const lines = pathGeojson.features;
-
-    const points = pointsGeojson.features;
-    console.log("points:::", points);
 
     if (!lines) {
       throw new Error(
@@ -197,11 +224,23 @@ export default class App extends Vue {
               )?.id,
             } as GraphPoint;
           } else {
-            this.nextId++;
-            return {
-              coordinates: cords,
-              id: this.nextId,
-            } as GraphPoint;
+            const floorChangePoint = pointsGeojson.features.find(
+              (point) =>
+                point.geometry.coordinates[0] === cords[0] &&
+                point.geometry.coordinates[1] === cords[1]
+            );
+            if (floorChangePoint) {
+              return {
+                coordinates: cords,
+                id: floorChangePoint.properties.id,
+              } as GraphPoint;
+            } else {
+              this.nextId++;
+              return {
+                coordinates: cords,
+                id: this.nextId.toString(),
+              } as GraphPoint;
+            }
           }
         });
 
@@ -238,12 +277,22 @@ export default class App extends Vue {
           point.geometry.coordinates[0] === graphItem.point.coordinates[0] &&
           point.geometry.coordinates[1] === graphItem.point.coordinates[1]
       );
-      const isFloorChanger = !!floorChangePoint;
+      let floorChangerNodes: CalculatedNode[] = [];
+      if (floorChangePoint?.properties.nodes) {
+        const { type, nodes } = floorChangePoint.properties;
+        floorChangerNodes = nodes.split(",").map((nodeId) => {
+          return {
+            id: nodeId,
+            distance: type === "lift" ? 200 : 100, // 200 dla windy, 100 dla reszty
+            invalidDistance: type === "lift" ? 200 : 10000, // 10000 aby nie poprowadzić inwalidy przez schody
+          };
+        });
+      }
+
       const nodes: CalculatedNode[] = graphItem.nodes.map((node) => {
         const from = point(graphItem.point.coordinates);
         const to = point(node.coordinates);
         const dist = distance(from, to, { units: "meters" });
-        console.log(dist);
 
         return {
           id: node.id,
@@ -251,18 +300,13 @@ export default class App extends Vue {
           invalidDistance: +dist.toFixed(2),
         };
       });
-      const baseData = {
-        isFloorChanger,
-        point: graphItem.point,
-        nodes,
-      };
-      if (isFloorChanger) {
+      if (floorChangePoint) {
         floorChangerCounter++;
       }
-
-      return floorChangePoint
-        ? { ...baseData, name: floorChangePoint.properties.name }
-        : baseData;
+      return {
+        point: graphItem.point,
+        nodes: [...nodes, ...floorChangerNodes],
+      };
     });
 
     const newFeatures: ResultGeojsonFeatures[] = graphWithDistances.map(
@@ -273,7 +317,6 @@ export default class App extends Vue {
             id: item.point.id,
             floor,
             nodes: item.nodes,
-            isFloorChanger: item.isFloorChanger,
             name: item.name,
           },
           geometry: {
@@ -293,7 +336,7 @@ export default class App extends Vue {
     this.addedFloors = [...this.addedFloors, newFloor];
   }
 
-  generateResult() {
+  generateResult(): void {
     const resultGeojson: ResultGeojson = {
       type: "FeatureCollection",
       features: this.features,
