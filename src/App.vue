@@ -12,10 +12,8 @@
       układ wsp. WGS84, precyzja zapisu: 8.
     </p>
     <p>
-      <b>Ścieżka:</b><br />
+      <b>Ścieżki:</b><br />
       Typ geometrii: LineString. <br />
-      Atrybuty przypisane w geojsonie (W QGISie): <br />
-      - floor (nazwa piętra)
     </p>
     <p>
       <b>Punkty:</b><br />
@@ -37,8 +35,14 @@
       punkty do jednego pliku.<br />
     </p>
     <div class="add-floor">
-      <label class="label" v-if="!isPathLoaded">
-        <span>Dodaj ściezkę</span>
+      <div>
+        <label>
+          Nazwa piętra
+          <input v-if="!isPathLoaded" type="text" v-model="floorName" />
+        </label>
+      </div>
+      <label class="label" v-if="floorName.length && !isPathLoaded">
+        <span>Dodaj ścieżki</span>
         <input
           class="add-floor__input"
           type="file"
@@ -108,6 +112,7 @@ export default class App extends Vue {
   currentPathGeojson!: PathGeojson | null;
   addedFloors: { label: string; floorChangers: number }[] = [];
   features: ResultGeojsonFeatures[] = [];
+  floorName = "";
   readonly geojsonType = "application/geo+json";
 
   get isAnyGeojson(): boolean {
@@ -196,11 +201,11 @@ export default class App extends Vue {
       );
     }
 
-    const floor = lines[0]?.properties.floor;
+    const floor = this.floorName;
 
     if (!floor) {
       throw new Error(
-        `There is no floor in lines properties in geojson:, ${pathGeojson.name}`
+        `Wystąpił błąd, brak nazwy dla piętra:, ${pathGeojson.name}`
       );
     }
     const linesWithPointsId: GraphPoint[][] = lines
@@ -334,6 +339,7 @@ export default class App extends Vue {
     };
 
     this.addedFloors = [...this.addedFloors, newFloor];
+    this.floorName = "";
   }
 
   generateResult(): void {
