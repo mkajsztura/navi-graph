@@ -19,7 +19,8 @@
       <b>Punkty:</b><br />
       Typ geometrii: Points.<br />
       Atrybuty przypisane w geojsonie (W QGISie):<br />
-      - type: 'stairs/lift'( stairs - dla schodów, lift - dla taśm i wind)<br />
+      - type: 'stairs/lift'( stairs - dla schodów, lift/trav - dla taśm i
+      wind)<br />
       - id: string (np. "F00-lift-1")<br />
       - nodes: string (id'ki punktów, z którymi jest połączony obecny punkt,
       jako string, oddzielone przecinkiem, np. "F00-lift-1,F20-lift-1"))<br />
@@ -285,11 +286,12 @@ export default class App extends Vue {
       let floorChangerNodes: CalculatedNode[] = [];
       if (floorChangePoint?.properties.nodes) {
         const { type, nodes } = floorChangePoint.properties;
+        const isLiftOrTrav = type === "lift" || type === "trav";
         floorChangerNodes = nodes.split(",").map((nodeId) => {
           return {
             id: nodeId,
-            distance: type === "lift" ? 200 : 100, // 200 dla windy, 100 dla reszty
-            invalidDistance: type === "lift" ? 200 : 10000, // 10000 aby nie poprowadzić inwalidy przez schody
+            distance: isLiftOrTrav ? 200 : 100, // 200 dla windy, 100 dla reszty
+            invalidDistance: isLiftOrTrav ? 200 : 10000, // 10000 aby nie poprowadzić inwalidy przez schody
           };
         });
       }
