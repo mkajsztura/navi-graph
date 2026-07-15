@@ -1,0 +1,40 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+#app {
+  height: 100%;
+  font-family: Roboto, Arial, Helvetica, sans-serif;
+  color: #2c3e50;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.label {
+  padding: 20px 40px;
+  border: 1px darkgray solid;
+  box-shadow: 0 0 2px darkgray;
+  text-align: center;
+  display: inline-block;
+  border-radius: 5px;
+  color: dimgray;
+  font-size: 20px;
+  cursor: pointer;
+  background: none;
+  margin: 4px;
+}
+
+.label span {
+  width: 100%;
+}
+
+.add-floor__input {
+  visibility: hidden;
+  width: 1px;
+}

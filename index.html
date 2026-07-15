@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>navi-graph</title>
+  </head>
+  <body>
+    <div id="app">
+      <h3>
+        Przygotowanie grafu Dijkstry - do obsługi wyznaczania najkrótszej trasy.
+      </h3>
+      <p>
+        Do przygotowania wynikowego geojsona, z wyliczonymi odległościami,
+        pomiędzy punktami, potrzebujemy dla każdego piętra ścieżek - na podstawie
+        których tworzymy punkty oraz ewentualne punkty zmiany pięter, dzięki
+        którym łączymy poziomy.<br />
+        Pliki z punktami zmiany pięter i ścieżkami dodajemy w formacie geojson,
+        układ wsp. WGS84, precyzja zapisu: 8.
+      </p>
+      <p>
+        <b>Ścieżki:</b><br />
+        Typ geometrii: LineString. <br />
+      </p>
+      <p>
+        <b>Punkty:</b><br />
+        Typ geometrii: Points.<br />
+        Atrybuty przypisane w geojsonie (W QGISie):<br />
+        - type: 'stairs/lift'( stairs - dla schodów, lift/trav - dla taśm i
+        wind)<br />
+        - id: string (np. "F00-lift-1")<br />
+        - nodes: string (id'ki punktów, z którymi jest połączony obecny punkt,
+        jako string, oddzielone przecinkiem, np. "F00-lift-1,F20-lift-1"))<br />
+      </p>
+      <p>
+        <b>Instrukcja:</b><br />
+        1. Dodajemy plik geojson ze ściężką (połączony graf Disktry) dla piętra.
+        np. galeria-nav-lines.geojson<br />
+        2. Dodajemy plik geojson z punktami zmiany pięter, np.
+        galeria-nav-points.geojson.<br />
+        3. Generujemy wynikowy plik geojson z powstałymi punktami.<br />
+        4. Przy generowaniu wyników osobno dla pięter, trzeba ręcznie skopiować
+        punkty do jednego pliku.<br />
+      </p>
+
+      <div class="add-floor">
+        <div>
+          <label>
+            Nazwa piętra
+            <input id="floor-name" type="text" />
+          </label>
+        </div>
+
+        <label class="label" id="path-label" hidden>
+          <span>Dodaj ścieżki</span>
+          <input class="add-floor__input" type="file" id="path-input" />
+        </label>
+
+        <label class="label" id="points-label" hidden>
+          <span>Dodaj punkty zmiany pięter</span>
+          <input class="add-floor__input" type="file" id="points-input" />
+        </label>
+
+        <label class="label" id="no-points-label" hidden>
+          <span id="no-points-btn">Brak punktów zmiany pięter</span>
+        </label>
+      </div>
+
+      <div>
+        <button class="label" id="generate-btn" hidden>
+          Generuj plik wynikowy
+        </button>
+      </div>
+
+      <div class="list">
+        <h4>Dodane piętra</h4>
+        <ul id="floors-list"></ul>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

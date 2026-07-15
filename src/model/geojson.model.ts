@@ -29,13 +29,14 @@ export interface PointGeojsonFeatures {
   properties: {
     type: string;
     id: string;
-    nodes: string; // Id'ki punktów zmiany pięter,z którymi jest połączony punkt,s po przecinku
+    nodes: string; // Id'ki punktów zmiany pięter, z którymi jest połączony punkt, po przecinku
   };
   geometry: {
     type: GeometryType.Point;
     coordinates: number[];
   };
 }
+
 export interface ResultGeojson {
   type: "FeatureCollection";
   features: ResultGeojsonFeatures[];
